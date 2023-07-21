@@ -1,8 +1,5 @@
 import {
   QuickSightClient,
-  ListDashboardsCommandInput,
-  ListDashboardsCommand,
-  ListTagsForResourceCommand,
   StartAssetBundleExportJobCommandInput,
   StartAssetBundleExportJobCommand,
 } from '@aws-sdk/client-quicksight';
@@ -21,104 +18,6 @@ function createRandomId(): string {
   }
 
   return outString;
-}
-
-async function getDashboardIdsForExport(): Promise<string[]> {
-  console.log('Getting dashboards for export');
-
-  const listDashboardsCommandInput = {
-      AwsAccountId: AWS_ACCOUNT_ID,
-      MaxResults: 100,
-  } as ListDashboardsCommandInput;
-
-  const listDashboardsCommand = new ListDashboardsCommand(listDashboardsCommandInput);
-
-  const listDashboardsResult = await quicksightClient.send(listDashboardsCommand);
-
-  if (!listDashboardsResult) throw new Error('Empty result from ListDashboardsCommand');
-
-  if (!listDashboardsResult.Status) {
-      throw new Error('No Status returned');
-  }
-
-  if (listDashboardsResult.Status < 200 || listDashboardsResult.Status >= 300) {
-      console.error(
-          `ListDashboardsCommand failed with status ${listDashboardsResult.Status}`,
-          JSON.stringify(listDashboardsResult)
-      );
-      throw new Error(`ListDashboardsCommand failed with status ${listDashboardsResult.Status}`);
-  }
-  if (!listDashboardsResult.DashboardSummaryList) {
-      throw new Error('No DashboardSummaryList returned');
-  }
-
-  if (listDashboardsResult.NextToken) {
-      listDashboardsCommandInput.NextToken = listDashboardsResult.NextToken;
-      const listDashboardsCommandNext = new ListDashboardsCommand(listDashboardsCommandInput);
-      const listDashboardsResultNext = await quicksightClient.send(listDashboardsCommandNext);
-      if (!listDashboardsResultNext) throw new Error('Empty result from ListDashboardsCommand');
-      if (!listDashboardsResultNext.Status) {
-          throw new Error('No Status returned');
-      }
-      if (listDashboardsResultNext.Status < 200 || listDashboardsResultNext.Status >= 300) {
-          console.error(
-              `ListDashboardsCommand failed with status ${listDashboardsResultNext.Status}`,
-              JSON.stringify(listDashboardsResultNext)
-          );
-          throw new Error(
-              `ListDashboardsCommand failed with status ${listDashboardsResultNext.Status}`
-          );
-      }
-      if (listDashboardsResultNext.DashboardSummaryList) {
-          listDashboardsResult.DashboardSummaryList = [
-              ...listDashboardsResult.DashboardSummaryList,
-              ...listDashboardsResultNext.DashboardSummaryList,
-          ];
-      }
-  }
-
-  const dashboardArns = listDashboardsResult.DashboardSummaryList.map((x) => x.Arn);
-
-  // Filter the dashboards to only those with the ForPipelineExport tag
-
-  const dashboardArnsForExport: string[] = [];
-
-  for (const dashboardArn of dashboardArns) {
-      if (!dashboardArn) {
-          continue;
-      }
-
-      const listTagsForResourceInput = {
-          ResourceArn: dashboardArn,
-      };
-      const listTagsForResourceCommand = new ListTagsForResourceCommand(listTagsForResourceInput);
-      const listTagsForResourceResult = await quicksightClient.send(listTagsForResourceCommand);
-      if (!listTagsForResourceResult)
-          throw new Error('Empty result from ListTagsForResourceCommand');
-      if (!listTagsForResourceResult.Status) {
-          throw new Error('No Status returned');
-      }
-      if (listTagsForResourceResult.Status < 200 || listTagsForResourceResult.Status >= 300) {
-          console.error(
-              `ListTagsForResourceCommand failed with status ${listTagsForResourceResult.Status}`,
-              JSON.stringify(listTagsForResourceResult)
-          );
-          throw new Error(
-              `ListTagsForResourceCommand failed with status ${listTagsForResourceResult.Status}`
-          );
-      }
-      if (!listTagsForResourceResult.Tags) {
-          continue;
-      }
-      for (const tag of listTagsForResourceResult.Tags) {
-          if (tag.Key === 'ForPipelineExport' && tag.Value === 'true') {
-              console.log(`dashboardArn: ${dashboardArn} has tag ForPipelineExport=true`);
-              dashboardArnsForExport.push(dashboardArn);
-          }
-      }
-  }
-
-  return dashboardArnsForExport;
 }
 
 async function startQuicksightAssetExport(dashboardIds: string[]): Promise<string> {
@@ -165,10 +64,7 @@ export const handler = async (event: any): Promise<any> => {
 
   console.log('Starting dashboard export');
 
-  const dashboardIds = await getDashboardIdsForExport();
-  console.log(`Found ${dashboardIds.length} dashboards to export`);
-
-  const AssetBundleExportJobId = await startQuicksightAssetExport(dashboardIds);
+  const AssetBundleExportJobId = await startQuicksightAssetExport([]);
 
   return AssetBundleExportJobId;
 };
