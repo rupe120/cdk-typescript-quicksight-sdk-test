@@ -50,9 +50,9 @@ export class QuicksightStack extends cdk.Stack {
         // Start asset export function, without runtime specified
         const startQuicksightAssetExportFunction2 = new njsLambda.NodejsFunction(
           this,
-          `quicksight-start-asset-export`,
+          `quicksight-start-asset-export-w-runtime`,
           {
-              functionName: `quicksight-start-asset-export`,
+              functionName: `quicksight-start-asset-export-w-runtime`,
               entry: 'lib/quicksight-stack-export.ts',
               tracing: lambda.Tracing.ACTIVE,
               insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_143_0,
